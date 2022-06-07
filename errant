@@ -20,40 +20,34 @@ function go() {
 DRY_RUN=false
 REMOVE=false
 PERIODIC=""
-OPERATOR=""
-COUNTRY=""
-TECHNOLOGY=""
-QUALITY=""
+
+DOWNLOAD=""
+UPLOAD=""
+LATENCY=""
+
 INTERFACE=""
 LOGFILE=""
 
-while getopts  "o:c:t:q:i:p:l:rhd" flag
+while getopts  "a:b:c:i:p:l:rhd" flag
 do
     case $flag in
-        o) OPERATOR=$OPTARG;;
-        c) COUNTRY=$OPTARG;;
-        t) TECHNOLOGY=$OPTARG;;
-        q) QUALITY=$OPTARG;;
+        a) UPLOAD=$OPTARG;;
+        b) DOWNLOAD=$OPTARG;;
+        c) LATENCY=$OPTARG;;
         i) INTERFACE=$OPTARG;;
         l) LOGFILE=$OPTARG;;
         r) REMOVE=true;;
         d) DRY_RUN=true;;
         p) PERIODIC=$OPTARG;;
-        h) echo "Usage: errant -o operator -c country -t technology -q quality -i interface [-p period] [-l logfile] [-r] [-d] [-h]" ; exit ;;
+        h) echo "Usage: errant -a upload -b download -c rtt -i interface [-p period] [-l logfile] [-r] [-d] [-h]" ; exit ;;
     esac
 done
-
-# Log file header
-if [ ! -z $LOGFILE ] ; then
-    echo "time,operator,country,technology,quality,download,upload,rtt" > $LOGFILE
-fi
 
 # Remove rules
 if [ "$REMOVE" = true ]; then
 
     # Check arguments are correct
-    if [ -z "$OPERATOR" ] && [ -z "$COUNTRY" ] && [ -z "$TECHNOLOGY" ] \
-                          && [ -z "$QUALITY" ] && [ -z "$INTERFACE" ]; then
+    if [ -z "$INTERFACE" ]; then
         echo "Removing shaping rules"
         
         # Remove module IFB
@@ -72,9 +66,8 @@ if [ "$REMOVE" = true ]; then
     fi
     
 else
-    if [ -z "$OPERATOR" ] || [ -z "$COUNTRY" ] || [ -z "$TECHNOLOGY" ] \
-                          || [ -z "$QUALITY" ] || [ -z "$INTERFACE" ]; then
-        echo "You should specify all of operator,country, technology, quality and interface"
+    if [ -z "$INTERFACE" ]; then
+        echo "You should specify all of interface"
     else
         echo "Imposing shaping on interface: $INTERFACE"
         
@@ -89,20 +82,14 @@ else
         
         while true ; do
             # Search for profile
-            values=$( python3 sample_from_distribution.py $OPERATOR $COUNTRY $TECHNOLOGY $QUALITY )
+            #values=$( python3 sample_from_distribution.py $OPERATOR $COUNTRY $TECHNOLOGY $QUALITY )
+            values="$DOWNLOAD $UPLOAD $LATENCY"
                     
             if [ "$values" = "error" ] ; then
                 echo "Cannot find selected profile"
                 exit
             else
             
-                # Print infos
-                echo "Imposing profile:"
-                echo "    Operator:   $OPERATOR"
-                echo "    Country:    $COUNTRY"
-                echo "    Technology: $TECHNOLOGY"
-                echo "    Quality:    $QUALITY"
-                
                 DOWNLOAD=$(echo $values | cut -d " " -f 1)
                 UPLOAD=$(echo $values | cut -d " " -f 2)
                 RTT_AVG=$(echo $values | cut -d " " -f 3)
@@ -111,12 +98,7 @@ else
                 echo "    Download [kbps]: $DOWNLOAD"
                 echo "    Upload [kbps]:   $UPLOAD"
                 echo "    RTT [ms]:        $RTT_AVG"
-                
-                # Write Log if needed
-                if [ ! -z $LOGFILE ] ; then
-                    echo "$(date +%s),$OPERATOR,$COUNTRY,$TECHNOLOGY,$QUALITY,$DOWNLOAD,$UPLOAD,$RTT_AVG" >> $LOGFILE
-                fi
-                
+
                 # Impose shaping
                 
                 # Create virtual interfaces
